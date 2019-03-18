@@ -1,33 +1,4 @@
-(function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
-	typeof define === 'function' && define.amd ? define(factory) :
-	(global.deepmerge = factory());
-}(this, (function () { 'use strict';
-
-var isMergeableObject = function isMergeableObject(value) {
-	return isNonNullObject(value)
-		&& !isSpecial(value)
-};
-
-function isNonNullObject(value) {
-	return !!value && typeof value === 'object'
-}
-
-function isSpecial(value) {
-	var stringValue = Object.prototype.toString.call(value);
-
-	return stringValue === '[object RegExp]'
-		|| stringValue === '[object Date]'
-		|| isReactElement(value)
-}
-
-// see https://github.com/facebook/react/blob/b5ac963fb791d1298e7f396236383bc955f916c1/src/isomorphic/classic/element/ReactElement.js#L21-L25
-var canUseSymbol = typeof Symbol === 'function' && Symbol.for;
-var REACT_ELEMENT_TYPE = canUseSymbol ? Symbol.for('react.element') : 0xeac7;
-
-function isReactElement(value) {
-	return value.$$typeof === REACT_ELEMENT_TYPE
-}
+var defaultIsMergeableObject = require('is-mergeable-object')
 
 function emptyTarget(val) {
 	return Array.isArray(val) ? [] : {}
@@ -43,14 +14,6 @@ function defaultArrayMerge(target, source, options) {
 	return target.concat(source).map(function(element) {
 		return cloneUnlessOtherwiseSpecified(element, options)
 	})
-}
-
-function getMergeFunction(key, options) {
-	if (!options.customMerge) {
-		return deepmerge
-	}
-	var customMerge = options.customMerge(key);
-	return typeof customMerge === 'function' ? customMerge : deepmerge
 }
 const emptyTarget = value => Array.isArray(value) ? [] : {}
 const clone = (value, options) => merge(emptyTarget(value), value, options)
@@ -71,32 +34,39 @@ function combineMerge(target, source, options) {
 	})
 	return destination
 }
+function getMergeFunction(key, options) {
+	if (!options.customMerge) {
+		return deepmerge
+	}
+	var customMerge = options.customMerge(key)
+	return typeof customMerge === 'function' ? customMerge : deepmerge
+}
 
 function mergeObject(target, source, options) {
-	var destination = {};
+	var destination = {}
 	if (options.isMergeableObject(target)) {
 		Object.keys(target).forEach(function(key) {
-			destination[key] = cloneUnlessOtherwiseSpecified(target[key], options);
-		});
+			destination[key] = cloneUnlessOtherwiseSpecified(target[key], options)
+		})
 	}
 	Object.keys(source).forEach(function(key) {
 		if (!options.isMergeableObject(source[key]) || !target[key]) {
-			destination[key] = cloneUnlessOtherwiseSpecified(source[key], options);
+			destination[key] = cloneUnlessOtherwiseSpecified(source[key], options)
 		} else {
-			destination[key] = getMergeFunction(key, options)(target[key], source[key], options);
+			destination[key] = getMergeFunction(key, options)(target[key], source[key], options)
 		}
-	});
+	})
 	return destination
 }
 
 function deepmerge(target, source, options) {
-	options = options || {};
-	options.arrayMerge = options.arrayMerge || combineMerge;
-	options.isMergeableObject = options.isMergeableObject || isMergeableObject;
+	options = options || {}
+	options.arrayMerge = options.arrayMerge || defaultArrayMerge
+	options.isMergeableObject = options.isMergeableObject || defaultIsMergeableObject
 
-	var sourceIsArray = Array.isArray(source);
-	var targetIsArray = Array.isArray(target);
-	var sourceAndTargetTypesMatch = sourceIsArray === targetIsArray;
+	var sourceIsArray = Array.isArray(source)
+	var targetIsArray = Array.isArray(target)
+	var sourceAndTargetTypesMatch = sourceIsArray === targetIsArray
 
 	if (!sourceAndTargetTypesMatch) {
 		return cloneUnlessOtherwiseSpecified(source, options)
@@ -115,10 +85,7 @@ deepmerge.all = function deepmergeAll(array, options) {
 	return array.reduce(function(prev, next) {
 		return deepmerge(prev, next, options)
 	}, {})
-};
+}
 
-var deepmerge_1 = deepmerge;
+module.exports = deepmerge
 
-return deepmerge_1;
-
-})));
